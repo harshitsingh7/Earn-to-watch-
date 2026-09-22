@@ -1,0 +1,6 @@
+{
+  "name": "Earn to Watch",
+  "description": "Watch ads to earn coins, apply referral codes to boost rewards, and redeem your earnings directly to UPI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
