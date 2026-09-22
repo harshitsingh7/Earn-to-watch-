@@ -16,8 +16,8 @@ export const DEFAULT_USER_STATS: UserStats = {
 
 export const DEFAULT_AD_CONFIG: AdManagerConfig = {
   publisherId: 'ca-pub-2425727788776772',
-  bannerAdSlotId: '9827364510',
-  rewardedAdUnitPath: '/2425727788776772/earn_to_watch_rewarded',
+  bannerAdSlotId: '9136412509',
+  rewardedAdUnitPath: '/2425727788776772/9136412509',
   isTestMode: false,
   adsTxtDomain: 'earntowatch.app',
 };

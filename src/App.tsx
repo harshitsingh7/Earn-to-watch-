@@ -26,6 +26,7 @@ import { RewardedAdModal } from './components/RewardedAdModal';
 import { CoinDrawer } from './components/CoinDrawer';
 import { AdManagerSetupModal } from './components/AdManagerSetupModal';
 import { RedemptionSuccessModal } from './components/RedemptionSuccessModal';
+import { GoogleAdUnit } from './components/GoogleAdUnit';
 import { playCoinSound } from './utils/sound';
 
 export default function App() {
@@ -357,6 +358,11 @@ export default function App() {
               </button>
             </div>
           )}
+          {/* Live Google AdSense Ad Unit */}
+          <GoogleAdUnit 
+            slot="9136412509" 
+            client="ca-pub-2425727788776772" 
+          />
         </section>
       </main>
 
