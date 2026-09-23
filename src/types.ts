@@ -1,9 +1,13 @@
 export interface UserStats {
   coins: number;
   totalAdsWatched: number;
+  dailyAdsWatched: number;
+  lastWatchDate: string; // YYYY-MM-DD
   referralCode: string | null;
   isDeveloperBonus: boolean;
   coinsPerAd: number;
+  dailyPartnerVisits: number;
+  lastPartnerVisitDate: string; // YYYY-MM-DD
 }
 
 export interface RedemptionRecord {

@@ -9,9 +9,13 @@ const STORAGE_KEYS = {
 export const DEFAULT_USER_STATS: UserStats = {
   coins: 0,
   totalAdsWatched: 0,
+  dailyAdsWatched: 0,
+  lastWatchDate: new Date().toISOString().split('T')[0],
   referralCode: null,
   isDeveloperBonus: false,
   coinsPerAd: 5,
+  dailyPartnerVisits: 0,
+  lastPartnerVisitDate: new Date().toISOString().split('T')[0],
 };
 
 export const DEFAULT_AD_CONFIG: AdManagerConfig = {
@@ -76,12 +80,22 @@ export const SAMPLE_ADS: AdCreative[] = [
 export function loadUserStats(): UserStats {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.USER_STATS);
+    const today = new Date().toISOString().split('T')[0];
     if (!data) return DEFAULT_USER_STATS;
     const parsed = JSON.parse(data);
     const isDev = (parsed.referralCode || '').trim().toUpperCase() === 'DEVELOPER';
+    
+    // Check if day rolled over
+    const lastDate = parsed.lastWatchDate || today;
+    const isNewDay = lastDate !== today;
+
     return {
       ...DEFAULT_USER_STATS,
       ...parsed,
+      dailyAdsWatched: isNewDay ? 0 : (parsed.dailyAdsWatched || 0),
+      lastWatchDate: today,
+      dailyPartnerVisits: (parsed.lastPartnerVisitDate !== today) ? 0 : (parsed.dailyPartnerVisits || 0),
+      lastPartnerVisitDate: today,
       isDeveloperBonus: isDev,
       coinsPerAd: isDev ? 10 : 5,
     };

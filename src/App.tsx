@@ -9,7 +9,10 @@ import {
   Zap,
   Award,
   ArrowUpRight,
-  Flame
+  Flame,
+  Clock,
+  ShieldCheck,
+  AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserStats, RedemptionRecord, AdManagerConfig } from './types';
@@ -20,14 +23,16 @@ import {
   saveRedemptions, 
   loadAdConfig, 
   saveAdConfig,
-  SAMPLE_ADS 
 } from './utils/storage';
-import { RewardedAdModal } from './components/RewardedAdModal';
+import { AdSenseRewardedModal } from './components/AdSenseRewardedModal';
 import { CoinDrawer } from './components/CoinDrawer';
 import { AdManagerSetupModal } from './components/AdManagerSetupModal';
 import { RedemptionSuccessModal } from './components/RedemptionSuccessModal';
 import { GoogleAdUnit } from './components/GoogleAdUnit';
+import { SeoFaqSection } from './components/SeoFaqSection';
 import { playCoinSound } from './utils/sound';
+
+const DAILY_AD_LIMIT = 10;
 
 export default function App() {
   const [userStats, setUserStats] = useState<UserStats>(loadUserStats);
@@ -40,10 +45,8 @@ export default function App() {
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [lastRedemption, setLastRedemption] = useState<RedemptionRecord | null>(null);
 
-  // Ad selection cycle
-  const [currentAdIndex, setCurrentAdIndex] = useState(0);
-  const [isButtonPulsing, setIsButtonPulsing] = useState(true);
   const [recentEarningToast, setRecentEarningToast] = useState<{ amount: number; text: string } | null>(null);
+  const [limitWarningToast, setLimitWarningToast] = useState<string | null>(null);
 
   // Persist state changes
   useEffect(() => {
@@ -58,27 +61,37 @@ export default function App() {
     saveAdConfig(adConfig);
   }, [adConfig]);
 
-  // Handle clicking "Earn Coin"
+  const dailyAdsWatched = userStats.dailyAdsWatched || 0;
+  const remainingAdsToday = Math.max(0, DAILY_AD_LIMIT - dailyAdsWatched);
+  const isDailyLimitReached = remainingAdsToday === 0;
+
+  // Handle clicking "Watch Ad (Earn Coin)"
   const handleEarnCoinClick = () => {
-    // Select next ad in sample queue
-    setCurrentAdIndex((prev) => (prev + 1) % SAMPLE_ADS.length);
+    if (isDailyLimitReached) {
+      setLimitWarningToast('Daily limit reached! You can watch a maximum of 10 ads per day to ensure high-quality advertising.');
+      setTimeout(() => setLimitWarningToast(null), 5000);
+      return;
+    }
     setIsAdModalOpen(true);
   };
 
   // Handle completing rewarded ad
   const handleRewardClaimed = (earnedAmount: number) => {
     setUserStats((prev) => {
-      const nextStats = {
+      const today = new Date().toISOString().split('T')[0];
+      const nextDaily = (prev.lastWatchDate === today ? prev.dailyAdsWatched : 0) + 1;
+      return {
         ...prev,
         coins: prev.coins + earnedAmount,
         totalAdsWatched: prev.totalAdsWatched + 1,
+        dailyAdsWatched: nextDaily,
+        lastWatchDate: today,
       };
-      return nextStats;
     });
 
     setRecentEarningToast({
       amount: earnedAmount,
-      text: userStats.isDeveloperBonus ? 'Double bonus applied! (+10)' : 'Reward granted! (+5)',
+      text: userStats.isDeveloperBonus ? 'Double bonus applied! (+10)' : 'Google Ad reward granted! (+5)',
     });
 
     setTimeout(() => {
@@ -171,7 +184,7 @@ export default function App() {
                 </span>
               </h1>
               <p className="text-[11px] text-slate-400 font-medium hidden xs:block">
-                Watch verified Google ads & redeem instant UPI cash
+                Watch verified ads & redeem instant UPI rewards
               </p>
             </div>
           </div>
@@ -228,61 +241,73 @@ export default function App() {
           </div>
         )}
 
+        {/* Daily Limit Warning Toast */}
+        {limitWarningToast && (
+          <div className="mb-4 w-full max-w-md animate-in slide-in-from-top-4 fade-in duration-300">
+            <div className="p-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-semibold flex items-center gap-2 shadow-lg">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{limitWarningToast}</span>
+            </div>
+          </div>
+        )}
+
         {/* Central Reward System Hero Section */}
-        <section className="w-full my-auto py-6 flex flex-col items-center text-center">
+        <section className="w-full my-auto py-4 flex flex-col items-center text-center">
           
-          {/* Multiplier / Referral Pill */}
-          <div className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300 shadow-inner">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            {userStats.isDeveloperBonus ? (
-              <span className="text-emerald-300 font-bold">
-                Referral Bonus Active: Earning 10 Coins / Ad
-              </span>
-            ) : (
-              <span>
-                Standard Rate: <strong>5 coins</strong> for each ad watched
-              </span>
-            )}
-            <button
-              onClick={() => setIsCoinDrawerOpen(true)}
-              className="text-[11px] text-amber-400 hover:text-amber-300 underline font-semibold ml-1"
-            >
-              {userStats.isDeveloperBonus ? 'View Code' : 'Enter Code'}
-            </button>
+          {/* Daily Limit Tracker Pill */}
+          <div className="mb-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300 shadow-inner">
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <span>
+              Daily Ads Watched: <strong className={isDailyLimitReached ? 'text-rose-400' : 'text-amber-400'}>{dailyAdsWatched} / {DAILY_AD_LIMIT}</strong>
+            </span>
+            <span className="text-slate-500">•</span>
+            <span className="text-slate-400">
+              {isDailyLimitReached ? 'Resets at midnight' : `${remainingAdsToday} remaining today`}
+            </span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight mb-2">
             Watch Ads & <span className="text-amber-400">Earn Coins</span>
           </h2>
-          <p className="text-sm sm:text-base text-slate-400 max-w-lg mb-8 leading-relaxed">
-            Click the button below to trigger Google Ad Manager. Complete the short ad video to instantly credit coins to your wallet.
+          <p className="text-xs sm:text-sm text-slate-400 max-w-lg mb-6 leading-relaxed">
+            Watch sponsored video ads to earn coins! You can watch up to 10 verified ads per day.
           </p>
 
-          {/* Core Central "Earn Coin" Button */}
+          {/* Core Central "Watch Ad (Earn Coin)" Button */}
           <div className="relative group my-2">
-            {/* Outer animated halo / glow */}
-            <div className="absolute -inset-1.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 rounded-3xl blur-lg opacity-70 group-hover:opacity-100 transition duration-300 animate-pulse" />
+            <div className={`absolute -inset-1.5 rounded-3xl blur-lg transition duration-300 ${
+              isDailyLimitReached 
+                ? 'bg-slate-700/50 opacity-40' 
+                : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 opacity-70 group-hover:opacity-100 animate-pulse'
+            }`} />
 
             <button
               onClick={handleEarnCoinClick}
+              disabled={isDailyLimitReached}
               id="btn-main-earn-coin"
-              className="relative px-10 sm:px-14 py-5 sm:py-6 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:via-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xl sm:text-2xl uppercase tracking-wider shadow-2xl shadow-amber-500/40 transform transition-all duration-200 active:scale-95 flex items-center justify-center gap-3 cursor-pointer"
+              className={`relative px-10 sm:px-14 py-5 sm:py-6 rounded-2xl font-black text-xl sm:text-2xl uppercase tracking-wider shadow-2xl transform transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer ${
+                isDailyLimitReached
+                  ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                  : 'bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:via-amber-400 hover:to-yellow-400 text-slate-950 active:scale-95 shadow-amber-500/40'
+              }`}
             >
-              <Coins className="w-7 h-7 fill-slate-950" />
-              <span>Earn Coin</span>
-              <div className="ml-1 px-2.5 py-0.5 rounded-lg bg-slate-950/20 text-slate-950 text-xs font-black tracking-normal uppercase">
+              <Coins className={`w-7 h-7 ${isDailyLimitReached ? 'text-slate-500' : 'fill-slate-950'}`} />
+              <span>{isDailyLimitReached ? 'Daily Limit Reached' : 'Watch Ad'}</span>
+              <div className={`ml-1 px-2.5 py-0.5 rounded-lg text-xs font-black tracking-normal uppercase ${
+                isDailyLimitReached ? 'bg-slate-700 text-slate-400' : 'bg-slate-950/20 text-slate-950'
+              }`}>
                 +{userStats.coinsPerAd}c
               </div>
             </button>
           </div>
 
-          <p className="text-xs text-slate-400 mt-4 font-medium flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>Recalls Ad Manager backend mediation & loads sponsored creative</span>
+          <p className="text-xs text-slate-400 mt-3 font-medium flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Fair reward policy: 10 ads daily limit per user</span>
           </p>
 
           {/* Quick Stats & Progress toward 100 coin redemption milestone */}
-          <div className="mt-10 w-full max-w-xl grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+          <div className="mt-8 w-full max-w-xl grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
             {/* Card 1: Balance */}
             <div 
               onClick={() => setIsCoinDrawerOpen(true)}
@@ -300,17 +325,17 @@ export default function App() {
               </div>
             </div>
 
-            {/* Card 2: Ads Watched */}
+            {/* Card 2: Daily Ads Watched */}
             <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
               <div className="flex items-center justify-between text-slate-400 text-xs font-semibold mb-1">
-                <span>Total Watched</span>
+                <span>Today's Limit</span>
                 <Flame className="w-3.5 h-3.5 text-rose-400" />
               </div>
               <div className="text-xl font-extrabold text-white">
-                {userStats.totalAdsWatched} <span className="text-xs font-normal text-slate-400">ads</span>
+                {dailyAdsWatched} / {DAILY_AD_LIMIT}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
-                Earn rate: {userStats.coinsPerAd}c / ad
+                Total: {userStats.totalAdsWatched} ads
               </div>
             </div>
 
@@ -358,11 +383,17 @@ export default function App() {
               </button>
             </div>
           )}
-          {/* Live Google AdSense Ad Unit */}
-          <GoogleAdUnit 
-            slot="9136412509" 
-            client="ca-pub-2425727788776772" 
-          />
+
+          {/* Official Google AdSense Display Banner */}
+          <div className="w-full max-w-xl mt-6">
+            <GoogleAdUnit 
+              slot="9136412509" 
+              client="ca-pub-2425727788776772" 
+            />
+          </div>
+
+          {/* SEO Rich FAQs and Explanations */}
+          <SeoFaqSection />
         </section>
       </main>
 
@@ -380,15 +411,15 @@ export default function App() {
         </div>
       </footer>
 
-      {/* 1. Rewarded Ad Modal (Recalled on "Earn Coin" Tap) */}
-      <RewardedAdModal
+      {/* 1. Official Google AdSense Rewarded Modal */}
+      <AdSenseRewardedModal
         isOpen={isAdModalOpen}
         onClose={() => setIsAdModalOpen(false)}
         onRewardClaimed={handleRewardClaimed}
         coinsReward={userStats.coinsPerAd}
-        adCreative={SAMPLE_ADS[currentAdIndex]}
         adConfig={adConfig}
         isDeveloperBonus={userStats.isDeveloperBonus}
+        dailyAdsRemaining={remainingAdsToday}
       />
 
       {/* 2. Top Right Corner Coin Tab Drawer */}
@@ -401,7 +432,7 @@ export default function App() {
         redemptions={redemptions}
       />
 
-      {/* 3. Google Ad Manager Connection & Monetization Setup Modal */}
+      {/* 4. Google Ad Manager Connection & Monetization Setup Modal */}
       <AdManagerSetupModal
         isOpen={isSetupModalOpen}
         onClose={() => setIsSetupModalOpen(false)}
@@ -409,7 +440,7 @@ export default function App() {
         onSaveConfig={(newCfg) => setAdConfig(newCfg)}
       />
 
-      {/* 4. Instant UPI Redemption Receipt Modal */}
+      {/* 5. Instant UPI Redemption Receipt Modal */}
       <RedemptionSuccessModal
         record={lastRedemption}
         onClose={() => setLastRedemption(null)}
